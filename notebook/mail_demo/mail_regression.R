@@ -1,10 +1,15 @@
 # library
 library("tidyverse")
 library("sensemakr")
-
+library("haven")
+library("broom")
+library("MatchIt")
+library("WeightIt")
+library("cobalt")
 # load data
 mail_df <- read_csv("./data/E-MailAnalytics.csv")
 mail_df %>% head()
+str(mail_male_df)
 
 # 男性のみで実験する（データの準備）
 mail_male_df <- mail_df %>% 
@@ -27,6 +32,14 @@ print(true_ate)
 col_names <- mail_male_df %>% 
   names()
 col_names
+
+# シンプルな回帰分析を実施する ----------------------------------------------------------
+
+reg <- lm(formula = conversion ~ treatment + recency + history 
+          +mens + womens + newbie,
+          data = mail_male_df)
+reg %>% tidy()
+summary(reg)
 
 
 # 傾向スコアマッチングによる効果推定 -------------------------------------------------------
