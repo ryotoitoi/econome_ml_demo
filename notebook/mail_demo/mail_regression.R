@@ -6,6 +6,7 @@ library("broom")
 library("MatchIt")
 library("WeightIt")
 library("cobalt")
+
 # load data
 mail_df <- read_csv("./data/E-MailAnalytics.csv")
 mail_df %>% head()
