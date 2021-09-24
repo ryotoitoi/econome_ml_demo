@@ -1,5 +1,6 @@
 # library
 library("tidyverse")
+library("sensemakr")
 
 # load data
 mail_df <- read_csv("./data/E-MailAnalytics.csv")
@@ -58,7 +59,7 @@ paste("true ATE : ", true_ate)
 # IPWによる効果推定 --------------------------------------------------------------
 ## 重みの推定
 weighting <- weightit(formula = treatment ~ recency  + history + mens +
-                        +womens + newbie,
+                        +womens + newbie + zip_code + history_segment + channel,
                       data = mail_male_df,
                       method = "ps",
                       estimand = "ATE")
@@ -68,12 +69,32 @@ love.plot(weighting,
           threshold = .1)
 
 ## 重み付きデータでの効果の推定
+IPW_model <- lm(data = mail_male_df,
+                   formula = conversion ~ treatment,
+                   weights = weighting$weights)
+
 IPW_result <- lm(data = mail_male_df,
                  formula = conversion ~ treatment,
-                 weights = weighting$weights) %>%
+                 weights = weighting$weights) %>% 
   tidy()
 
+summary(IPW_model)
 IPW_result
+
 paste("IPW ATE : ", IPW_result[2, 2])
 paste("true ATE : ", true_ate)
 
+
+# 感度分析 --------------------------------------------------------------------
+
+email.sensitivity <- sensemakr(model = IPW_model, 
+                                treatment = "treatment",
+                                kd = 1:3,
+                                ky = 1:3, 
+                                q = 1,
+                                alpha = 0.05, 
+                                reduce = TRUE)
+email.sensitivity
+plot(email.sensitivity)
+miniml_report <- ovb_minimal_reporting(email.sensitivity, format = "html")
+                      
