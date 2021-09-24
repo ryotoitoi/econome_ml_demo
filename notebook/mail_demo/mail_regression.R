@@ -1,0 +1,79 @@
+# library
+library("tidyverse")
+
+# load data
+mail_df <- read_csv("./data/E-MailAnalytics.csv")
+mail_df %>% head()
+
+# 男性のみで実験する（データの準備）
+mail_male_df <- mail_df %>% 
+  filter(segment != "Womens E-Mail") %>% # 女性向けメールが配信されたデータを削除
+  mutate(treatment = ifelse(segment == "Mens E-Mail", 1, 0)) # 介入を表すtreatment変数を追加
+
+
+# 集計による比較
+## group_byとsummairseを使って集計
+summary_by_segment <- mail_male_df %>%
+  group_by(treatment) %>% # データのグループ化
+  summarise(conversion_rate = mean(conversion), # グループごとのconversionの平均
+            spend_mean = mean(spend), # グループごとのspendの平均
+            count = n()) # グループごとのデータ数
+
+true_ate <- summary_by_segment[2,2] - summary_by_segment[1,2]
+print(true_ate)
+
+# 列名の確認
+col_names <- mail_male_df %>% 
+  names()
+col_names
+
+
+# 傾向スコアマッチングによる効果推定 -------------------------------------------------------
+
+## 傾向スコアを用いたマッチング
+m_near <- matchit(formula = treatment ~ recency  + history + mens +
+                    +womens + newbie,
+                  data = mail_male_df,
+                  method = "nearest")
+
+## 共変量のバランスを確認
+love.plot(m_near,
+          threshold = .1)
+
+## マッチング後のデータを作成
+matched_data <- match.data(m_near)
+
+## マッチング後のデータで効果の推定
+PSM_result <- lm(data = matched_data,
+                      formula = conversion ~ treatment) %>%
+  tidy()
+
+PSM_result
+
+paste("PSM ATE : ", PSM_result[2, 2])
+paste("true ATE : ", true_ate)
+
+
+
+# IPWによる効果推定 --------------------------------------------------------------
+## 重みの推定
+weighting <- weightit(formula = treatment ~ recency  + history + mens +
+                        +womens + newbie,
+                      data = mail_male_df,
+                      method = "ps",
+                      estimand = "ATE")
+
+## 共変量のバランスを確認
+love.plot(weighting,
+          threshold = .1)
+
+## 重み付きデータでの効果の推定
+IPW_result <- lm(data = mail_male_df,
+                 formula = conversion ~ treatment,
+                 weights = weighting$weights) %>%
+  tidy()
+
+IPW_result
+paste("IPW ATE : ", IPW_result[2, 2])
+paste("true ATE : ", true_ate)
+
