@@ -1,3 +1,7 @@
+
+# emailのデータセットをバイアスをかけて正しく因果効果が推定されるかを確認する --------------------------------
+
+
 # library
 library("tidyverse")
 library("sensemakr")
@@ -16,6 +20,22 @@ str(mail_male_df)
 mail_male_df <- mail_df %>% 
   filter(segment != "Womens E-Mail") %>% # 女性向けメールが配信されたデータを削除
   mutate(treatment = ifelse(segment == "Mens E-Mail", 1, 0)) # 介入を表すtreatment変数を追加
+
+# (5) セレクションバイアスのあるデータを作成
+## seedを固定する
+set.seed(1)
+
+## 条件に反応するサンプルの量を半分にする
+obs_rate_c <- 0.5
+obs_rate_t <- 0.5
+
+## バイアスのあるデータを作成
+biased_data <- mail_male_df %>%
+  mutate(obs_rate_c = ifelse( (history > 300) | (recency < 6) | (channel == "Multichannel"), obs_rate_c, 1),
+         obs_rate_t = ifelse( (history > 300) | (recency < 6) | (channel == "Multichannel"), 1, obs_rate_t),
+         random_number = runif(n = NROW(mail_male_df))) %>%
+  filter( (treatment == 0 & random_number < obs_rate_c ) |
+            (treatment == 1 & random_number < obs_rate_t) )
 
 
 # 集計による比較
@@ -38,7 +58,7 @@ col_names
 
 reg <- lm(formula = conversion ~ treatment + recency + history 
           +mens + womens + newbie,
-          data = mail_male_df)
+          data = biased_data)
 reg %>% tidy()
 summary(reg)
 
@@ -48,7 +68,7 @@ summary(reg)
 ## 傾向スコアを用いたマッチング
 m_near <- matchit(formula = treatment ~ recency  + history + mens +
                     +womens + newbie,
-                  data = mail_male_df,
+                  data = biased_data,
                   method = "nearest")
 
 ## 共変量のバランスを確認
