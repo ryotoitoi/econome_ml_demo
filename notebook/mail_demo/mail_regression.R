@@ -12,7 +12,7 @@ library("WeightIt")
 library("cobalt")
 
 # load data
-mail_df <- read_csv("./data/E-MailAnalytics.csv")
+mail_df <- read_csv("/data/notebook/E-MailAnalytics.csv")
 mail_df %>% head()
 str(mail_male_df)
 
